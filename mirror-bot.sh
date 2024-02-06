@@ -3,7 +3,7 @@
 # VERBOSE="${VERBOSE:-1}"
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-teeworlds/teeworlds}"
 DOWNSTREAM_REMOTE="${DOWNSTREAM_REMOTE:-teeworlds-community/teeworlds}"
-DOWNSTREAM_BRANCH="${DOWNSTREAM_BRANCH:-test-community}"
+DOWNSTREAM_BRANCH="${DOWNSTREAM_BRANCH:-community}"
 
 KNOWN_URLS_FILE=urls.txt
 GH_URLS_FILE=tmp/gh_urls.txt
