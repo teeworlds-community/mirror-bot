@@ -58,6 +58,7 @@ get_upstream_prs() {
 	# https://github.com/teeworlds/teeworlds/pull/2931 datafile-exceptions:Robyt3
 	# https://github.com/teeworlds/teeworlds/pull/2950 harpoon-draft-pr:Stiopa866
 	gh pr list \
+		--limit 90000 \
 		--repo "$UPSTREAM_REMOTE" \
 		--state open \
 		--json headRepositoryOwner,headRefName,url,title |
@@ -119,6 +120,7 @@ on_new_pr() {
 
 get_new_known_form_gh() {
 	gh_prs="$(gh pr list \
+		--limit 90000 \
 		--state all \
 		--repo "$DOWNSTREAM_REMOTE" \
 		--json title,body)"
