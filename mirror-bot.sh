@@ -1,17 +1,23 @@
 #!/bin/sh
 
+# VERBOSE="${VERBOSE:-1}"
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-teeworlds/teeworlds}"
 DOWNSTREAM_REMOTE="${DOWNSTREAM_REMOTE:-teeworlds-community/teeworlds}"
+DOWNSTREAM_BRANCH="${DOWNSTREAM_BRANCH:-test-community}"
 
 KNOWN_URLS_FILE=urls.txt
 GH_URLS_FILE=tmp/gh_urls.txt
-NEW_URLS_FILE=tmp/new_urls.txt
 
 err() {
 	printf '[-][%s] %s\n' "$(date '+%F %H:%M')" "$1"
 }
 log() {
 	printf '[*][%s] %s\n' "$(date '+%F %H:%M')" "$1"
+}
+dbg() {
+	[ "$VERBOSE" = "" ] && return
+
+	printf '[DEBUG][%s] %s\n' "$(date '+%F %H:%M')" "$1"
 }
 
 # everything not in here should be passed to check_dep
@@ -29,8 +35,23 @@ check_dep jq
 mkdir -p tmp
 
 :>"$GH_URLS_FILE"
-:>"$NEW_URLS_FILE"
 [ ! -f "$KNOWN_URLS_FILE" ] && :>"$KNOWN_URLS_FILE"
+
+# https://stackoverflow.com/questions/38015239/url-encoding-a-string-in-shell-script-in-a-portable-way/38021063#38021063
+urlencodepipe() {
+    LANG=C;
+    while IFS= read -r c;
+    do
+        case $c in [a-zA-Z0-9.~_-]) printf "%s" "$c"; continue ;; esac
+        printf "%s" "$c" | od -An -tx1 | tr ' ' % | tr -d '\n'
+    done <<EOF
+$(fold -w1)
+EOF
+    echo
+}
+urlencode() {
+	printf '%s\n' "$*" | urlencodepipe
+}
 
 get_upstream_prs() {
 	# example output:
@@ -39,8 +60,8 @@ get_upstream_prs() {
 	gh pr list \
 		--repo "$UPSTREAM_REMOTE" \
 		--state open \
-		--json headRepositoryOwner,headRefName,url |
-		jq -r '.[] | "\(.url) \(.headRepositoryOwner.login):\(.headRefName)"' |
+		--json headRepositoryOwner,headRefName,url,title |
+		jq -r '.[] | "\(.url) \(.headRepositoryOwner.login):\(.headRefName) \(.title)"' |
 		sort
 }
 
@@ -57,25 +78,57 @@ sort_file() {
 	mv "$file_path".tmp "$file_path"
 }
 
-new_pr() {
+create_pr() {
 	url="$1"
 	ref="$2"
-	log "new url=$url ref=$ref"
-	printf '%s\n' "$url $ref" >> "$KNOWN_URLS_FILE"
+	title="$3"
+	pr_id="${url##*/}"
+	dbg "url=$url ref=$ref pr_id=$pr_id title=$title"
+
+	manual_url="https://github.com/$DOWNSTREAM_REMOTE/compare/$DOWNSTREAM_BRANCH...$ref"
+	manual_url="$manual_url?expand=1&title=$(urlencode "$title #$pr_id")&body=$(urlencode "upstream: $url")"
+	# printf '%s\n' "$manual_url"
+	${BROWSER:-echo} "$manual_url"
+
+	# blocked by https://github.com/cli/cli/issues/8670
+	# gh pr create \
+	# 	--repo "$DOWNSTREAM_REMOTE" \
+	# 	--base "$DOWNSTREAM_BRANCH" \
+	# 	--head "$ref" \
+	# 	--title "todo title #$pr_id" \
+	# 	--body "usptream: $url"
+}
+
+on_new_pr() {
+	url="$1"
+	shift
+	ref="$1"
+	shift
+	title="$*"
+	_mark_as_known() {
+		printf '%s\n' "$url $ref $title" >> "$KNOWN_URLS_FILE"
+	}
+	if grep -qF "$url" "$KNOWN_URLS_FILE"
+	then
+		dbg "skipping known url=$url"
+		return
+	fi
+	_mark_as_known
+	log "new url=$url ref=$ref title=$title"
+	create_pr "$url" "$ref" "$title"
 }
 
 check_for_new() {
 	get_upstream_prs > "$GH_URLS_FILE"
 	sort_file "$GH_URLS_FILE"
 	sort_file "$KNOWN_URLS_FILE"
-	comm -23 "$GH_URLS_FILE" "$KNOWN_URLS_FILE" > "$NEW_URLS_FILE"
 
-	while read -r new
+	while IFS= read -r new
 	do
 		# we word split new into url and ref
 		# shellcheck disable=SC2086
-		new_pr $new
-	done < "$NEW_URLS_FILE"
+		on_new_pr $new
+	done < "$GH_URLS_FILE"
 }
 
 check_for_new
