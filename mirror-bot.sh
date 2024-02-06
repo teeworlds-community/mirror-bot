@@ -98,8 +98,8 @@ create_pr() {
 	# 	--repo "$DOWNSTREAM_REMOTE" \
 	# 	--base "$DOWNSTREAM_BRANCH" \
 	# 	--head "$ref" \
-	# 	--title "todo title #$pr_id" \
-	# 	--body "usptream: $url"
+	# 	--title "$title #$pr_id" \
+	# 	--body "upstream: $url"
 }
 
 on_new_pr() {
