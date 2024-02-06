@@ -83,6 +83,8 @@ create_pr() {
 	ref="$2"
 	title="$3"
 	pr_id="${url##*/}"
+	# https://github.com/orgs/community/discussions/23123#discussioncomment-3239240
+	url="https://www.github.com${url#*https://github.com}"
 	dbg "url=$url ref=$ref pr_id=$pr_id title=$title"
 
 	manual_url="https://github.com/$DOWNSTREAM_REMOTE/compare/$DOWNSTREAM_BRANCH...$ref"
@@ -105,17 +107,41 @@ on_new_pr() {
 	ref="$1"
 	shift
 	title="$*"
-	_mark_as_known() {
-		printf '%s\n' "$url $ref $title" >> "$KNOWN_URLS_FILE"
-	}
 	if grep -qF "$url" "$KNOWN_URLS_FILE"
 	then
 		dbg "skipping known url=$url"
 		return
 	fi
-	_mark_as_known
+	printf '%s\n' "$url" >> "$KNOWN_URLS_FILE"
 	log "new url=$url ref=$ref title=$title"
 	create_pr "$url" "$ref" "$title"
+}
+
+get_new_known_form_gh() {
+	gh_prs="$(gh pr list \
+		--state all \
+		--repo "$DOWNSTREAM_REMOTE" \
+		--json title,body)"
+	title_ids="$(printf '%s\n' "$gh_prs" |
+		jq '.[] | .title' -r |
+		grep -Eo " #[1-9][0-9][0-9][0-9]+$" |
+		cut -d'#' -f2)"
+	body_ids="$(printf '%s\n' "$gh_prs" |
+		jq '.[] | .body' |
+		grep -Eo "\"upstream: https://www.github.com/$UPSTREAM_REMOTE/pull/[0-9]+(\\\\r|\"$)" |
+		grep -Eo 'pull/[0-9]+' |
+		cut -d'/' -f2)"
+	printf '%s\n%s\n' "$title_ids" "$body_ids" | while IFS= read -r gh_id
+	do
+		[ "$gh_id" = "" ] && continue
+
+		if ! grep -qF "$gh_id" "$KNOWN_URLS_FILE"
+		then
+			url="https://github.com/$UPSTREAM_REMOTE/pull/$gh_id"
+			printf '%s\n' "$url" >> "$KNOWN_URLS_FILE"
+			log "new pull id found on $DOWNSTREAM_REMOTE id=$gh_id"
+		fi
+	done
 }
 
 check_for_new() {
@@ -131,5 +157,9 @@ check_for_new() {
 	done < "$GH_URLS_FILE"
 }
 
+log "checking for new pulls on own remote ..."
+get_new_known_form_gh
+log "checking for new pulls on upstream remote ..."
 check_for_new
+log "done."
 
