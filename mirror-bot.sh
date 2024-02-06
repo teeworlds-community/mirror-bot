@@ -40,7 +40,7 @@ get_upstream_prs() {
 		--repo "$UPSTREAM_REMOTE" \
 		--state open \
 		--json headRepositoryOwner,headRefName,url |
-		jq -r '.[] | "\(.url) \(.headRefName):\(.headRepositoryOwner.login)"' |
+		jq -r '.[] | "\(.url) \(.headRepositoryOwner.login):\(.headRefName)"' |
 		sort
 }
 
@@ -58,9 +58,10 @@ sort_file() {
 }
 
 new_pr() {
-	pr_info="$1"
-	log "new url=$pr_info"
-	printf '%s\n' "$url" >> "$KNOWN_URLS_FILE"
+	url="$1"
+	ref="$2"
+	log "new url=$url ref=$ref"
+	printf '%s\n' "$url $ref" >> "$KNOWN_URLS_FILE"
 }
 
 check_for_new() {
@@ -71,7 +72,9 @@ check_for_new() {
 
 	while read -r new
 	do
-		new_pr "$new"
+		# we word split new into url and ref
+		# shellcheck disable=SC2086
+		new_pr $new
 	done < "$NEW_URLS_FILE"
 }
 
