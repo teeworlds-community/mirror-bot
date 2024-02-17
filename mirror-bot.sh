@@ -91,15 +91,15 @@ create_pr() {
 	manual_url="https://github.com/$DOWNSTREAM_REMOTE/compare/$DOWNSTREAM_BRANCH...$ref"
 	manual_url="$manual_url?expand=1&title=$(urlencode "$title #$pr_id")&body=$(urlencode "upstream: $url")"
 	# printf '%s\n' "$manual_url"
-	${BROWSER:-echo} "$manual_url"
+	# ${BROWSER:-echo} "$manual_url"
 
-	# blocked by https://github.com/cli/cli/issues/8670
-	# gh pr create \
-	# 	--repo "$DOWNSTREAM_REMOTE" \
-	# 	--base "$DOWNSTREAM_BRANCH" \
-	# 	--head "$ref" \
-	# 	--title "$title #$pr_id" \
-	# 	--body "upstream: $url"
+	gh pr create \
+		--repo "$DOWNSTREAM_REMOTE" \
+		--base "$DOWNSTREAM_BRANCH" \
+		--head "$ref" \
+		--title "$title #$pr_id" \
+		--body "upstream: $url" \
+		--no-maintainer-edit
 }
 
 on_new_pr() {
