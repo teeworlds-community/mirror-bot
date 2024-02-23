@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # VERBOSE="${VERBOSE:-1}"
+ARG_DRY="${ARG_DRY:-1}"
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-teeworlds/teeworlds}"
 DOWNSTREAM_REMOTE="${DOWNSTREAM_REMOTE:-teeworlds-community/teeworlds}"
 DOWNSTREAM_BRANCH="${DOWNSTREAM_BRANCH:-community}"
@@ -31,6 +32,11 @@ check_dep() {
 
 check_dep gh
 check_dep jq
+
+if [ "$ARG_DRY" = 1 ]
+then
+	log "Running in dry mode. Run with ARG_DRY=0 to apply changes."
+fi
 
 mkdir -p tmp
 
@@ -93,13 +99,18 @@ create_pr() {
 	# printf '%s\n' "$manual_url"
 	# ${BROWSER:-echo} "$manual_url"
 
-	gh pr create \
-		--repo "$DOWNSTREAM_REMOTE" \
-		--base "$DOWNSTREAM_BRANCH" \
-		--head "$ref" \
-		--title "$title #$pr_id" \
-		--body "upstream: $url" \
-		--no-maintainer-edit
+	if [ "$ARG_DRY" = 1 ]
+	then
+		log "[dry] $url $ref $title"
+	else
+		gh pr create \
+			--repo "$DOWNSTREAM_REMOTE" \
+			--base "$DOWNSTREAM_BRANCH" \
+			--head "$ref" \
+			--title "$title #$pr_id" \
+			--body "upstream: $url" \
+			--no-maintainer-edit
+	fi
 }
 
 on_new_pr() {
