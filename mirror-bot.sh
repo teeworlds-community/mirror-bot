@@ -13,6 +13,9 @@ GH_URLS_FILE=tmp/gh_urls.txt
 err() {
 	printf '[-][%s] %s\n' "$(date '+%F %H:%M')" "$1"
 }
+wrn() {
+	printf '[!][%s] %s\n' "$(date '+%F %H:%M')" "$1"
+}
 log() {
 	printf '[*][%s] %s\n' "$(date '+%F %H:%M')" "$1"
 }
@@ -74,8 +77,8 @@ get_upstream_prs() {
 		--limit 90000 \
 		--repo "$UPSTREAM_REMOTE" \
 		--state open \
-		--json headRepositoryOwner,headRefName,url,isDraft,title |
-		jq -r '.[] | "\(.url) \(.headRepositoryOwner.login):\(.headRefName) \(.isDraft) \(.title)"' |
+		--json headRepositoryOwner,headRefName,url,baseRefName,isDraft,title |
+		jq -r '.[] | "\(.url) \(.headRepositoryOwner.login):\(.headRefName) \(.baseRefName) \(.isDraft) \(.title)"' |
 		sort
 }
 
@@ -131,12 +134,24 @@ on_new_pr() {
 	shift
 	ref="$1"
 	shift
+	target_branch="$1"
+	shift
 	is_draft="$1"
 	shift
 	title="$*"
 	if grep -qF "$url" "$KNOWN_URLS_FILE"
 	then
 		dbg "skipping known url=$url"
+		return
+	fi
+	if [ "$target_branch" = editor ]
+	then
+		dbg "Debug: skipping pr made against the editor branch"
+		dbg "       url=$url ref=$ref title=$title"
+	elif [ "$target_branch" != master ]
+	then
+		wrn "Warning: ignoring pr because it is against the '$target_branch' not the expected 'master' branch"
+		wrn "         url=$url ref=$ref title=$title"
 		return
 	fi
 	printf '%s\n' "$url" >> "$KNOWN_URLS_FILE"
