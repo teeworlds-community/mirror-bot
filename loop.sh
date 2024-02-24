@@ -8,6 +8,8 @@ log() {
 
 while ARG_DRY=0 ./mirror-bot.sh
 do
+	git add urls.txt
+	git commit -m 'auto sync' && git push
 	log "sleeping for $SLEEP_MINUTES minutes"
 	sleep "$SLEEP_MINUTES"m
 done
