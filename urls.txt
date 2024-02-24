@@ -50,3 +50,4 @@ https://github.com/teeworlds/teeworlds/pull/3220
 https://github.com/teeworlds/teeworlds/pull/3222
 https://github.com/teeworlds/teeworlds/pull/3223
 https://github.com/teeworlds/teeworlds/pull/3224
+https://github.com/teeworlds/teeworlds/pull/3221
