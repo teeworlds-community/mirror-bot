@@ -67,8 +67,8 @@ get_upstream_prs() {
 		--limit 90000 \
 		--repo "$UPSTREAM_REMOTE" \
 		--state open \
-		--json headRepositoryOwner,headRefName,url,title |
-		jq -r '.[] | "\(.url) \(.headRepositoryOwner.login):\(.headRefName) \(.title)"' |
+		--json headRepositoryOwner,headRefName,url,isDraft,title |
+		jq -r '.[] | "\(.url) \(.headRepositoryOwner.login):\(.headRefName) \(.isDraft) \(.title)"' |
 		sort
 }
 
@@ -88,11 +88,17 @@ sort_file() {
 create_pr() {
 	url="$1"
 	ref="$2"
-	title="$3"
+	is_draft="$3"
+	title="$4"
 	pr_id="${url##*/}"
 	# https://github.com/orgs/community/discussions/23123#discussioncomment-3239240
 	url="https://www.github.com${url#*https://github.com}"
-	dbg "url=$url ref=$ref pr_id=$pr_id title=$title"
+	flag_draft=''
+	if [ "$is_draft" = true ]
+	then
+		flag_draft='--draft'
+	fi
+	dbg "url=$url ref=$ref pr_id=$pr_id draft=$is_draft title=$title"
 
 	manual_url="https://github.com/$DOWNSTREAM_REMOTE/compare/$DOWNSTREAM_BRANCH...$ref"
 	manual_url="$manual_url?expand=1&title=$(urlencode "$title #$pr_id")&body=$(urlencode "upstream: $url")"
@@ -101,9 +107,9 @@ create_pr() {
 
 	if [ "$ARG_DRY" = 1 ]
 	then
-		log "[dry] $url $ref $title"
+		log "[dry] $url $ref $flag_draft $title"
 	else
-		gh pr create \
+		gh pr create $flag_draft \
 			--repo "$DOWNSTREAM_REMOTE" \
 			--base "$DOWNSTREAM_BRANCH" \
 			--head "$ref" \
@@ -118,6 +124,8 @@ on_new_pr() {
 	shift
 	ref="$1"
 	shift
+	is_draft="$1"
+	shift
 	title="$*"
 	if grep -qF "$url" "$KNOWN_URLS_FILE"
 	then
@@ -125,8 +133,8 @@ on_new_pr() {
 		return
 	fi
 	printf '%s\n' "$url" >> "$KNOWN_URLS_FILE"
-	log "new url=$url ref=$ref title=$title"
-	create_pr "$url" "$ref" "$title"
+	log "new url=$url ref=$ref draft=$is_draft title=$title"
+	create_pr "$url" "$ref" "$is_draft" "$title"
 }
 
 get_new_known_form_gh() {
