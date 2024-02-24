@@ -5,6 +5,7 @@ ARG_DRY="${ARG_DRY:-1}"
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-teeworlds/teeworlds}"
 DOWNSTREAM_REMOTE="${DOWNSTREAM_REMOTE:-teeworlds-community/teeworlds}"
 DOWNSTREAM_BRANCH="${DOWNSTREAM_BRANCH:-community}"
+GH_BOT_USERNAME="${GH_BOT_USERNAME:-teeworlds-mirror}"
 
 KNOWN_URLS_FILE=urls.txt
 GH_URLS_FILE=tmp/gh_urls.txt
@@ -36,6 +37,12 @@ check_dep jq
 if [ "$ARG_DRY" = 1 ]
 then
 	log "Running in dry mode. Run with ARG_DRY=0 to apply changes."
+fi
+
+if ! gh auth switch --user "$GH_BOT_USERNAME"
+then
+	err "Error: failed to switch to github account '$GH_BOT_USERNAME'"
+	exit 1
 fi
 
 mkdir -p tmp
