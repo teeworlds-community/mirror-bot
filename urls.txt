@@ -59,3 +59,4 @@ https://github.com/teeworlds/teeworlds/pull/3229
 https://github.com/teeworlds/teeworlds/pull/3230
 https://github.com/teeworlds/teeworlds/pull/3231
 https://github.com/teeworlds/teeworlds/pull/3234
+https://github.com/teeworlds/teeworlds/pull/3235
