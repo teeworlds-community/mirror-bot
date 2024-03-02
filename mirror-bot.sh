@@ -148,6 +148,8 @@ on_new_pr() {
 	then
 		dbg "Debug: skipping pr made against the editor branch"
 		dbg "       url=$url ref=$ref title=$title"
+		printf '%s\n' "$url" >> "$KNOWN_URLS_FILE"
+		return
 	elif [ "$target_branch" != master ]
 	then
 		wrn "Warning: ignoring pr because it is against the '$target_branch' not the expected 'master' branch"
