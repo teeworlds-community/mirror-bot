@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# shellcheck disable=SC1091
+[ -f .env ] && . .env
+
 # VERBOSE="${VERBOSE:-1}"
 ARG_DRY="${ARG_DRY:-1}"
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-teeworlds/teeworlds}"
