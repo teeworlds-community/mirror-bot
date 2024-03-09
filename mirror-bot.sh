@@ -99,8 +99,8 @@ get_upstream_prs() {
 		--limit 90000 \
 		--repo "$UPSTREAM_REMOTE" \
 		--state open \
-		--json headRepositoryOwner,headRefName,url,baseRefName,isDraft,title |
-		jq -r '.[] | "\(.url) \(.headRepositoryOwner.login):\(.headRefName) \(.baseRefName) \(.isDraft) \(.title)"' |
+		--json headRepository,headRepositoryOwner,headRefName,url,baseRefName,isDraft,title |
+		jq -r '.[] | "\(.url) \(.headRepository.name) \(.headRepositoryOwner.login):\(.headRefName) \(.baseRefName) \(.isDraft) \(.title)"' |
 		sort
 }
 
@@ -122,9 +122,10 @@ sort_file() {
 # it can not be written to
 create_pr_direct_ref() {
 	url="$1"
-	ref="$2"
-	is_draft="$3"
-	title="$4"
+	_repo_name="$2"
+	ref="$3"
+	is_draft="$4"
+	title="$5"
 	pr_id="${url##*/}"
 	# https://github.com/orgs/community/discussions/23123#discussioncomment-3239240
 	url="https://www.github.com${url#*https://github.com}"
@@ -197,6 +198,24 @@ git_checkout_branch_or_die() {
 	fi
 }
 
+git_add_remote_and_fetch() {
+	remote_name="$1"
+	remote_url="$2"
+	git remote add "$remote_name" "$remote_url"
+	if ! git fetch "$remote_name"
+	then
+		err "Error: failed to fetch $remote_name"
+		err "       expect it to point at $remote_url"
+		err "       check the following command"
+		err ""
+		err "  cd $PWD"
+		err "  git remote -v"
+		err "  git fetch $remote_name"
+		err ""
+		exit 1
+	fi
+}
+
 # create a branch owned by the bot user
 # that contains the pullrequest
 # so this one has to be maintained by the bot
@@ -206,26 +225,40 @@ git_checkout_branch_or_die() {
 # it depends on being in the root of the mirror-bot repo on launch
 # and it changes directory into data/copy_branches_repo
 create_pr_copy_ref() {
+	# url="$1"
+	pr_repo_name="$2"
+	ref="$3"
+	# is_draft="$4"
+	# title="$5"
+
 	goto_copy_branches_repo
 	git_checkout_branch_or_die "$UPSTREAM_BRANCH"
 	git fetch || exit 1
+
+	pr_repo_owner="$(printf '%s' "$ref" | cut -d':' -f1)"
+	pr_git_url="git@github.com:$pr_repo_owner/$pr_repo_name"
+
+	log "fetching pr from $pr_git_url ..."
+	git_add_remote_and_fetch "remote_$pr_repo_owner" "$pr_git_url"
 }
 
 create_pr() {
 	if [ "$COPY_BRANCHES" = 1 ]
 	then
-		create_pr_direct_ref "$@"
-	else
 		# allow any kind of directory chaning
 		# in create_pr_copy_ref
 		old_pwd="$PWD"
 		create_pr_copy_ref "$@"
 		cd "$old_pwd" || exit 1
+	else
+		create_pr_direct_ref "$@"
 	fi
 }
 
 on_new_pr() {
 	url="$1"
+	shift
+	pr_repo_name="$1"
 	shift
 	ref="$1"
 	shift
@@ -253,7 +286,7 @@ on_new_pr() {
 	fi
 	printf '%s\n' "$url" >> "$KNOWN_URLS_FILE"
 	log "new url=$url ref=$ref draft=$is_draft title=$title"
-	create_pr "$url" "$ref" "$is_draft" "$title"
+	create_pr "$url" "$pr_repo_name" "$ref" "$is_draft" "$title"
 }
 
 get_new_known_form_gh() {
