@@ -216,6 +216,21 @@ git_add_remote_and_fetch() {
 	fi
 }
 
+push_branch_or_die() {
+	remote="$1"
+	branch="$2"
+	if ! git push -u "$remote" "$branch"
+	then
+		err "Error: failed to push branch $branch to remote $remote"
+		err "       check the following command"
+		err ""
+		err "  cd $PWD"
+		err "  git push -u $remote $branch"
+		err ""
+		exit 1
+	fi
+}
+
 # create a branch owned by the bot user
 # that contains the pullrequest
 # so this one has to be maintained by the bot
@@ -225,12 +240,20 @@ git_add_remote_and_fetch() {
 # it depends on being in the root of the mirror-bot repo on launch
 # and it changes directory into data/copy_branches_repo
 create_pr_copy_ref() {
-	# url="$1"
+	url="$1"
 	pr_repo_name="$2"
 	ref="$3"
-	# is_draft="$4"
-	# title="$5"
+	is_draft="$4"
+	title="$5"
 	pr_id="${url##*/}"
+	# https://github.com/orgs/community/discussions/23123#discussioncomment-3239240
+	url="https://www.github.com${url#*https://github.com}"
+	flag_draft=''
+	if [ "$is_draft" = true ]
+	then
+		flag_draft='--draft'
+	fi
+	dbg "url=$url ref=$ref pr_id=$pr_id draft=$is_draft title=$title"
 
 	goto_copy_branches_repo
 	git_checkout_branch_or_die "$UPSTREAM_BRANCH"
@@ -246,6 +269,21 @@ create_pr_copy_ref() {
 	git_add_remote_and_fetch "remote_$pr_repo_owner" "$pr_git_url"
 	git_checkout_branch_or_die "$remote_name/$pr_branch"
 	git checkout -b "$copy_branch_name" || exit 1
+	push_branch_or_die origin "$copy_branch_name"
+
+	copy_branch_ref="$(printf '%s' "$COPY_BRANCHES_REMOTE" | cut -d'/' -f1):$copy_branch_name"
+
+	if [ "$ARG_DRY" = 1 ]
+	then
+		log "[dry] $url $ref $flag_draft $title"
+	else
+		gh pr create $flag_draft \
+			--repo "$DOWNSTREAM_REMOTE" \
+			--base "$DOWNSTREAM_BRANCH" \
+			--head "$copy_branch_ref" \
+			--title "$title #$pr_id" \
+			--body "upstream: $url"
+	fi
 }
 
 create_pr() {
