@@ -181,9 +181,10 @@ create_pr_direct_ref() {
 # creating the folder if it does not exist already
 goto_copy_branches_repo() {
 	cd data || exit 1
+	copy_remote_git_url="git@github.com:$COPY_BRANCHES_REMOTE"
 	if [ ! -d copy_branches_repo ]
 	then
-		if ! git clone "git@github.com:$COPY_BRANCHES_REMOTE" copy_branches_repo
+		if ! git clone "$copy_remote_git_url" copy_branches_repo
 		then
 			err "Error: failed to clone $COPY_BRANCHES_REMOTE"
 			err "       make sure to create this repository on github"
@@ -204,6 +205,19 @@ goto_copy_branches_repo() {
 	fi
 
 	cd copy_branches_repo || exit 1
+
+	if ! origin="$(git remote -v | grep '^origin[[:space:]]' | awk '{ print $2 }' | cut -d':' -f2)"
+	then
+		err "Error: failed to get origin of copy_branches_repo"
+		exit 1
+	fi
+
+	if [ "$origin" != "$copy_remote_git_url" ]
+	then
+		err "Error: git remote is wrong in the copy_branches_repo"
+		err "       make sure to update the repo manually in data/copy_branches_repo"
+		exit 1
+	fi
 }
 
 git_checkout_branch_or_die() {
