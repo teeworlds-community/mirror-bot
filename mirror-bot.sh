@@ -25,7 +25,7 @@ GH_URLS_FILE=tmp/gh_urls.txt
 # use local github cli config
 # so this script never opens pullrequests under the wrong github user
 # if the linux user wide configuration changes
-export GH_CONFIG_DIR=./gh
+export GH_CONFIG_DIR="$PWD/gh"
 
 err() {
 	printf '[-][%s] %s\n' "$(date '+%F %H:%M')" "$1"
