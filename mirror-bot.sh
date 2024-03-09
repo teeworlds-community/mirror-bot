@@ -95,13 +95,17 @@ get_upstream_prs() {
 	# example output:
 	# https://github.com/teeworlds/teeworlds/pull/2931 datafile-exceptions:Robyt3
 	# https://github.com/teeworlds/teeworlds/pull/2950 harpoon-draft-pr:Stiopa866
-	gh pr list \
+	if ! gh pr list \
 		--limit 90000 \
 		--repo "$UPSTREAM_REMOTE" \
 		--state open \
 		--json headRepository,headRepositoryOwner,headRefName,url,baseRefName,isDraft,title |
 		jq -r '.[] | "\(.url) \(.headRepository.name) \(.headRepositoryOwner.login):\(.headRefName) \(.baseRefName) \(.isDraft) \(.title)"' |
 		sort
+	then
+		err "Error: failed to list upstream pull requests on github"
+		exit 1
+	fi
 }
 
 sort_file() {
@@ -145,13 +149,17 @@ create_pr_direct_ref() {
 	then
 		log "[dry] $url $ref $flag_draft $title"
 	else
-		gh pr create $flag_draft \
+		if ! gh pr create $flag_draft \
 			--repo "$DOWNSTREAM_REMOTE" \
 			--base "$DOWNSTREAM_BRANCH" \
 			--head "$ref" \
 			--title "$title #$pr_id" \
 			--body "upstream: $url" \
 			--no-maintainer-edit
+		then
+			err "Error: failed to create pullrequest using github cli"
+			exit 1
+		fi
 	fi
 }
 
@@ -357,11 +365,15 @@ on_new_pr() {
 }
 
 get_new_known_form_gh() {
-	gh_prs="$(gh pr list \
+	if ! gh_prs="$(gh pr list \
 		--limit 90000 \
 		--state all \
 		--repo "$DOWNSTREAM_REMOTE" \
 		--json title,body)"
+	then
+		err "Error: failed to list pullrequests on github"
+		exit 1
+	fi
 	title_ids="$(printf '%s\n' "$gh_prs" |
 		jq '.[] | .title' -r |
 		grep -Eo " #[1-9][0-9][0-9][0-9]+$" |
