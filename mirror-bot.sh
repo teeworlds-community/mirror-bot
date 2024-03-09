@@ -345,7 +345,7 @@ create_pr_copy_ref() {
 
 	if [ "$ARG_DRY" = 1 ]
 	then
-		log "[dry] $url $ref $flag_draft $title"
+		log "(dry run) $url $ref $flag_draft $title"
 	else
 		if ! gh pr create $flag_draft \
 			--repo "$DOWNSTREAM_REMOTE" \
