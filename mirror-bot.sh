@@ -330,9 +330,10 @@ create_pr_copy_ref() {
 	log "fetching pr from $pr_git_url ..."
 
 	git_add_remote_and_fetch "remote_$pr_repo_owner" "$pr_git_url"
+	git_add_remote_and_fetch "remote_downstream" "git@github.com:$DOWNSTREAM_REMOTE"
 	git_checkout_branch_or_die "$remote_name/$pr_branch"
 	git checkout -b "$copy_branch_name" || exit 1
-	attempt_rebase_ignore_conflicts "$DOWNSTREAM_BRANCH"
+	attempt_rebase_ignore_conflicts "remote_downstream/$DOWNSTREAM_BRANCH"
 	push_branch_or_die origin "$copy_branch_name"
 
 	copy_branch_ref="$(printf '%s' "$COPY_BRANCHES_REMOTE" | cut -d'/' -f1):$copy_branch_name"
