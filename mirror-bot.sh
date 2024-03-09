@@ -101,10 +101,12 @@ urlencode() {
 	printf '%s\n' "$*" | urlencodepipe
 }
 
+# example output:
+# https://github.com/teeworlds/teeworlds/pull/3142 teeworlds Robyt3:Base64-Skinparts master true RFC: Embed non-standard skin parts in json skin files and load embedded parts
+# https://github.com/teeworlds/teeworlds/pull/3155 teeworlds Robyt3:Clang-Tidy master true WIP: Add clang-tidy to CI and enable clang-analyzer checks
+# https://github.com/teeworlds/teeworlds/pull/3188 teeworlds ViMaSter:server-browser-f5 master false Refresh ServerBrowser using F5
+# https://github.com/teeworlds/teeworlds/pull/3196 teeworlds Pere001:patch-2 master false Fix documentation typos.
 get_upstream_prs() {
-	# example output:
-	# https://github.com/teeworlds/teeworlds/pull/2931 datafile-exceptions:Robyt3
-	# https://github.com/teeworlds/teeworlds/pull/2950 harpoon-draft-pr:Stiopa866
 	if ! gh pr list \
 		--limit 90000 \
 		--repo "$UPSTREAM_REMOTE" \
