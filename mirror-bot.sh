@@ -188,7 +188,7 @@ git_checkout_branch_or_die() {
 	branch="$1"
 	if ! git checkout "$branch"
 	then
-		err "Error: failed to checkout upstream branch $branch"
+		err "Error: failed to checkout branch $branch"
 		err "       try running this command and check for errors"
 		err ""
 		err "  cd $PWD"
@@ -230,16 +230,22 @@ create_pr_copy_ref() {
 	ref="$3"
 	# is_draft="$4"
 	# title="$5"
+	pr_id="${url##*/}"
 
 	goto_copy_branches_repo
 	git_checkout_branch_or_die "$UPSTREAM_BRANCH"
 	git fetch || exit 1
 
 	pr_repo_owner="$(printf '%s' "$ref" | cut -d':' -f1)"
+	pr_branch="$(printf '%s' "$ref" | cut -d':' -f2-)"
 	pr_git_url="git@github.com:$pr_repo_owner/$pr_repo_name"
+	copy_branch_name="mirror_${pr_id}_${pr_repo_owner}_$pr_branch"
 
 	log "fetching pr from $pr_git_url ..."
+
 	git_add_remote_and_fetch "remote_$pr_repo_owner" "$pr_git_url"
+	git_checkout_branch_or_die "$remote_name/$pr_branch"
+	git checkout -b "$copy_branch_name" || exit 1
 }
 
 create_pr() {
