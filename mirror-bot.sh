@@ -356,13 +356,16 @@ on_new_pr() {
 	is_draft="$1"
 	shift
 	title="$*"
-	# TODO:
-	# id 22 is ignored if id 222 is known
-	# this is mostly not an issue for teeworlds
-	# but is annoying to debug and should be fixed!
-	if grep -qF "$url" "$KNOWN_URLS_FILE"
+	pr_id="${url##*/}"
+	if [ "$pr_id" = "" ]
 	then
-		dbg "skipping known url=$url"
+		err "Error: got invalid url=$url"
+		err "       failed to extract pull request id"
+		exit 1
+	fi
+	if grep -q "/$pr_id$" "$KNOWN_URLS_FILE"
+	then
+		dbg "skipping known id=$pr_id url=$url"
 		return
 	fi
 	if [ "$target_branch" = editor ]
@@ -507,9 +510,11 @@ force_recreate_pr_for_upstream_id() {
 	grep -v "/$upstream_id$" "$SCRIPT_ROOT/urls.txt" > "$SCRIPT_ROOT/tmp/urls.txt.tmp"
 	mv "$SCRIPT_ROOT/tmp/urls.txt.tmp" "$SCRIPT_ROOT/urls.txt" || exit 1
 
-	if ! upstream_pr_details="$(get_upstream_prs | grep "^https://github.com/teeworlds/teeworlds/pull/$upstream_id")"
+	upstream_url="https://github.com/teeworlds/teeworlds/pull/$upstream_id"
+	if ! upstream_pr_details="$(get_upstream_prs | grep "^$upstream_url$")"
 	then
 		err "Error: upstream pr with id $upstream_id not found"
+		err "       should be located here: $upstream_url"
 		exit 1
 	fi
 	if [ "$upstream_pr_details" = "" ]
