@@ -207,7 +207,7 @@ goto_copy_branches_repo() {
 
 	cd copy_branches_repo || exit 1
 
-	if ! origin="$(git remote -v | grep '^origin[[:space:]]' | awk '{ print $2 }' | cut -d':' -f2)"
+	if ! origin="$(git remote -v | grep '^origin[[:space:]]' | awk '{ print $2 }' | head -n1)"
 	then
 		err "Error: failed to get origin of copy_branches_repo"
 		exit 1
@@ -217,6 +217,9 @@ goto_copy_branches_repo() {
 	then
 		err "Error: git remote is wrong in the copy_branches_repo"
 		err "       make sure to update the repo manually in data/copy_branches_repo"
+		err ""
+		err "       expected: $copy_remote_git_url"
+		err "            got: $origin"
 		err ""
 		err "  rm -rf data/copy_branches_repo"
 		err "  cd data"
