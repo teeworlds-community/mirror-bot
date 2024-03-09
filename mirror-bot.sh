@@ -184,6 +184,7 @@ goto_copy_branches_repo() {
 	copy_remote_git_url="git@github.com:$COPY_BRANCHES_REMOTE"
 	if [ ! -d copy_branches_repo ]
 	then
+		log "cloning repo to copy pull requests in $copy_remote_git_url ..."
 		if ! git clone "$copy_remote_git_url" copy_branches_repo
 		then
 			err "Error: failed to clone $COPY_BRANCHES_REMOTE"
