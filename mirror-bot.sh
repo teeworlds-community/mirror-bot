@@ -27,15 +27,19 @@ GH_URLS_FILE=tmp/gh_urls.txt
 # if the linux user wide configuration changes
 export GH_CONFIG_DIR="$PWD/gh"
 
+# log error
 err() {
-	printf '[-][%s] %s\n' "$(date '+%F %H:%M')" "$1"
+	printf '[-][%s] %s\n' "$(date '+%F %H:%M')" "$1" > /dev/stderr
 }
+# log warning
 wrn() {
-	printf '[!][%s] %s\n' "$(date '+%F %H:%M')" "$1"
+	printf '[!][%s] %s\n' "$(date '+%F %H:%M')" "$1" > /dev/stderr
 }
+# log info
 log() {
 	printf '[*][%s] %s\n' "$(date '+%F %H:%M')" "$1"
 }
+# log debug
 dbg() {
 	[ "$VERBOSE" = "" ] && return
 
@@ -413,6 +417,53 @@ check_for_new() {
 		# shellcheck disable=SC2086
 		on_new_pr $new
 	done < "$GH_URLS_FILE"
+}
+
+# warning this is horribly slow
+# like maximum slowest implementation possible
+# prints space separated ids to stdout
+# might also print warnings to stderr
+#
+# example usage
+#
+# upstream_pr_id_to_downstream_pr_ids | while IFS=' ' read -r id; do printf "%s" "$id"; done
+upstream_pr_id_to_downstream_pr_ids() {
+	have_upstream_pr_id="$1"
+	if ! gh_prs="$(gh pr list \
+		--limit 90000 \
+		--state all \
+		--repo "$DOWNSTREAM_REMOTE" \
+		--json number,id,title,body)"
+	then
+		err "Error: failed to list pullrequests on github"
+		exit 1
+	fi
+	printf '%s' "$gh_prs" | jq .[] -c | while IFS="$(printf '\n')" read -r pr_json
+	do
+		title_id="$(printf '%s' "$pr_json" |
+			jq .title -r |
+			grep -Eo " #[1-9][0-9][0-9][0-9]+$" |
+			cut -d'#' -f2)"
+		body_id="$(printf '%s' "$pr_json" |
+			jq .body |
+			grep -Eo "\"upstream: https://www.github.com/$UPSTREAM_REMOTE/pull/[0-9]+(\\\\r|\"$)" |
+			grep -Eo 'pull/[0-9]+' |
+			cut -d'/' -f2)"
+		if [ "$title_id" = "" ] || [ "$body_id"  = "" ]
+		then
+			wrn "Warning: found empty title_id=$title_id body_id=$body_id"
+			continue
+		fi
+		if [ "$title_id" != "$body_id" ]
+		then
+			wrn "Warning: mismatch title_id=$title_id body_id=$body_id"
+			continue
+		fi
+		if [ "$title_id" = "$have_upstream_pr_id" ]
+		then
+			printf '%s ' "$pr_json" | jq .number
+		fi
+	done
 }
 
 show_help() {
