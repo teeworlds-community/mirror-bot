@@ -264,6 +264,11 @@ git_add_remote_and_fetch() {
 push_branch_or_die() {
 	remote="$1"
 	branch="$2"
+	if [ "$ARG_DRY" != 0 ]
+	then
+		log "(dry run) would push branch $branch to remote $remote"
+		return
+	fi
 	if ! git push -u "$remote" "$branch"
 	then
 		err "Error: failed to push branch $branch to remote $remote"
