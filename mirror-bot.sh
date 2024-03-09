@@ -277,12 +277,16 @@ create_pr_copy_ref() {
 	then
 		log "[dry] $url $ref $flag_draft $title"
 	else
-		gh pr create $flag_draft \
+		if ! gh pr create $flag_draft \
 			--repo "$DOWNSTREAM_REMOTE" \
 			--base "$DOWNSTREAM_BRANCH" \
 			--head "$copy_branch_ref" \
 			--title "$title #$pr_id" \
 			--body "upstream: $url"
+		then
+			err "Error: failed to create pullrequest using github cli"
+			exit 1
+		fi
 	fi
 }
 
