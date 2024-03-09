@@ -331,7 +331,7 @@ create_pr_copy_ref() {
 
 	git_add_remote_and_fetch "remote_$pr_repo_owner" "$pr_git_url"
 	git_add_remote_and_fetch "remote_downstream" "git@github.com:$DOWNSTREAM_REMOTE"
-	git_checkout_branch_or_die "$remote_name/$pr_branch"
+	git_checkout_branch_or_die "remote_$pr_repo_owner/$pr_branch"
 	git checkout -b "$copy_branch_name" || exit 1
 	attempt_rebase_ignore_conflicts "remote_downstream/$DOWNSTREAM_BRANCH"
 	push_branch_or_die origin "$copy_branch_name"
