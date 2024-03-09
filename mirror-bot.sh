@@ -216,6 +216,11 @@ goto_copy_branches_repo() {
 	then
 		err "Error: git remote is wrong in the copy_branches_repo"
 		err "       make sure to update the repo manually in data/copy_branches_repo"
+		err ""
+		err "  rm -rf data/copy_branches_repo"
+		err "  cd data"
+		err "  git clone $copy_remote_git_url copy_branches_repo"
+		err ""
 		exit 1
 	fi
 }
