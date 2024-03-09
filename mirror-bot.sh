@@ -3,7 +3,9 @@
 # shellcheck disable=SC1091
 [ -f .env ] && . ./.env
 
-# VERBOSE="${VERBOSE:-1}"
+SCRIPT_ROOT="$PWD"
+
+ARG_VERBOSE="${ARG_VERBOSE:-0}"
 ARG_DRY="${ARG_DRY:-1}"
 GH_BOT_USERNAME="${GH_BOT_USERNAME:-teeworlds-mirror}"
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-teeworlds/teeworlds}"
@@ -41,7 +43,7 @@ log() {
 }
 # log debug
 dbg() {
-	[ "$VERBOSE" = "" ] && return
+	[ "$ARG_VERBOSE" = "0" ] && return
 
 	printf '[DEBUG][%s] %s\n' "$(date '+%F %H:%M')" "$1"
 }
@@ -354,6 +356,10 @@ on_new_pr() {
 	is_draft="$1"
 	shift
 	title="$*"
+	# TODO:
+	# id 22 is ignored if id 222 is known
+	# this is mostly not an issue for teeworlds
+	# but is annoying to debug and should be fixed!
 	if grep -qF "$url" "$KNOWN_URLS_FILE"
 	then
 		dbg "skipping known url=$url"
@@ -428,12 +434,18 @@ check_for_new() {
 #
 # example usage
 #
-# upstream_pr_id_to_downstream_pr_ids | while IFS=' ' read -r id; do printf "%s" "$id"; done
+# upstream_pr_id_to_downstream_pr_ids 10 open | while IFS=' ' read -r id; do printf "%s" "$id"; done
 upstream_pr_id_to_downstream_pr_ids() {
 	have_upstream_pr_id="$1"
+	pr_state="${2:-all}"
+	if [ "$have_upstream_pr_id" = "" ]
+	then
+		err "Error: upstream_pr_id_to_downstream_pr_ids missing argument id"
+		exit 1
+	fi
 	if ! gh_prs="$(gh pr list \
 		--limit 90000 \
-		--state all \
+		--state "$pr_state" \
 		--repo "$DOWNSTREAM_REMOTE" \
 		--json number,id,title,body)"
 	then
@@ -468,18 +480,84 @@ upstream_pr_id_to_downstream_pr_ids() {
 	done
 }
 
+# create pr for one specific upstream id
+# closing prs for the same upstreamd id
+# and doing a force recreate
+#
+# can be used to turn a ref pr into a copy pr
+# or vice versa
+force_recreate_pr_for_upstream_id() {
+	upstream_id="$1"
+
+	# close existing prs
+	upstream_pr_id_to_downstream_pr_ids "$upstream_id" open | while IFS=' ' read -r id
+	do
+		wrn "closing pr $id"
+		if [ "$ARG_DRY" = 0 ]
+		then
+			if ! gh --repo "$DOWNSTREAM_REMOTE" pr close "$id"
+			then
+				err "Error: failed to close pr $id"
+				exit 1
+			fi
+		fi
+	done
+
+	# remove known url
+	grep -v "/$upstream_id$" "$SCRIPT_ROOT/urls.txt" > "$SCRIPT_ROOT/tmp/urls.txt.tmp"
+	mv "$SCRIPT_ROOT/tmp/urls.txt.tmp" "$SCRIPT_ROOT/urls.txt" || exit 1
+
+	if ! upstream_pr_details="$(get_upstream_prs | grep "^https://github.com/teeworlds/teeworlds/pull/$upstream_id")"
+	then
+		err "Error: upstream pr with id $upstream_id not found"
+		exit 1
+	fi
+	if [ "$upstream_pr_details" = "" ]
+	then
+		err "Error: upstream pr with id $upstream_id not found"
+		exit 1
+	fi
+	# shellcheck disable=SC2086
+	on_new_pr $upstream_pr_details
+}
+
 show_help() {
 	cat <<-EOF
-	usage: mirror-bot.sh
+	usage: mirror-bot.sh [OPTION..]
 	description:
-	  it copys github pull requests
+	  it copies github pull requests
 	  from teeworlds/teeworlds to teeworlds-community/teeworlds
 	  but it can also be configured to mirror other repositories
 	  it depends on the github cli and jq
+	options:
+	  --force-recreate <upstream_id..>          close pending downstream prs for given upstream ids
+	                                            and also force create one fresh pr for that upstream ids
+	                                            example: mirror-bot.sh --force-recreate 56 82
 	EOF
 }
 
+action_force_recreate() {
+	for upstream_id in "$@"
+	do
+		force_recreate_pr_for_upstream_id "$upstream_id"
+	done
+}
+
+action_sync() {
+	if [ "$ARG_ALLOW_DUPLICATES" = 0 ]
+	then
+		log "checking for new pulls on own remote ..."
+		get_new_known_form_gh
+	fi
+	log "checking for new pulls on upstream remote ..."
+	check_for_new
+	log "done."
+}
+
 parse_args() {
+	action=action_sync
+	action_args=''
+
 	while :
 	do
 		[ "$#" -lt 1 ] && break
@@ -491,21 +569,52 @@ parse_args() {
 		then
 			show_help
 			exit 0
+		elif [ "$arg" = "--verbose" ] || [ "$arg" = "-v" ]
+		then
+			ARG_VERBOSE=1
+		elif [ "$arg" = "--force-recreate" ]
+		then
+			action_args=''
+			if [ "$#" -lt 1 ]
+			then
+				err "Error: missing argument upstream_id for --force-recreate"
+				exit 1
+			fi
+			if ! printf "%s" "$1" | grep -qE '^[0-9]+$'
+			then
+				err "Error: missing numeric argument upstream_id for --force-recreate"
+				exit 1
+			fi
+			# force_recreate_pr_for_upstream_id 3242
+			got_numeric=1
+			while [ "$got_numeric" = 1 ]
+			do
+				[ "$#" -lt 1 ] && break
+
+				upstream_id=$1
+				shift
+				action_args=$action_args"$upstream_id "
+
+				if ! printf "%s" "$1" | grep -qE '^[0-9]+$'
+				then
+					got_numeric=0
+				fi
+			done
+			action=action_force_recreate
 		else
 			err "Error: unknown argument '$arg' check --help"
 			exit 1
 		fi
 	done
+	if [ "$action" = action_force_recreate ]
+	then
+		# shellcheck disable=SC2086
+		action_force_recreate $action_args
+	else
+		action_sync
+	fi
 }
 
 parse_args "$@"
 
-if [ "$ARG_ALLOW_DUPLICATES" = 0 ]
-then
-	log "checking for new pulls on own remote ..."
-	get_new_known_form_gh
-fi
-log "checking for new pulls on upstream remote ..."
-check_for_new
-log "done."
 
