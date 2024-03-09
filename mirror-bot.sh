@@ -511,7 +511,7 @@ force_recreate_pr_for_upstream_id() {
 	mv "$SCRIPT_ROOT/tmp/urls.txt.tmp" "$SCRIPT_ROOT/urls.txt" || exit 1
 
 	upstream_url="https://github.com/teeworlds/teeworlds/pull/$upstream_id"
-	if ! upstream_pr_details="$(get_upstream_prs | grep "^$upstream_url$")"
+	if ! upstream_pr_details="$(get_upstream_prs | grep "^$upstream_url ")"
 	then
 		err "Error: upstream pr with id $upstream_id not found"
 		err "       should be located here: $upstream_url"
