@@ -154,15 +154,9 @@ create_pr_direct_ref() {
 	fi
 }
 
-# create a branch owned by the bot user
-# that contains the pullrequest
-# so this one has to be maintained by the bot
-# but it can be written to
-#
-# this function is not pure
-# it depends on being in the root of the mirror-bot repo on launch
-# and it changes directory into data/copy_branches_repo
-create_pr_copy_ref() {
+# change directory into data/copy_branches_repo
+# creating the folder if it does not exist already
+goto_copy_branches_repo() {
 	cd data || exit 1
 	if [ ! -d copy_branches_repo ]
 	then
@@ -187,6 +181,34 @@ create_pr_copy_ref() {
 	fi
 
 	cd copy_branches_repo || exit 1
+}
+
+git_checkout_branch_or_die() {
+	branch="$1"
+	if ! git checkout "$branch"
+	then
+		err "Error: failed to checkout upstream branch $branch"
+		err "       try running this command and check for errors"
+		err ""
+		err "  cd $PWD"
+		err "  git checkout $branch"
+		err ""
+		exit 1
+	fi
+}
+
+# create a branch owned by the bot user
+# that contains the pullrequest
+# so this one has to be maintained by the bot
+# but it can be written to
+#
+# this function is not pure
+# it depends on being in the root of the mirror-bot repo on launch
+# and it changes directory into data/copy_branches_repo
+create_pr_copy_ref() {
+	goto_copy_branches_repo
+	git_checkout_branch_or_die "$UPSTREAM_BRANCH"
+	git fetch || exit 1
 }
 
 create_pr() {
