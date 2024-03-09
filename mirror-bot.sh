@@ -5,10 +5,16 @@
 
 # VERBOSE="${VERBOSE:-1}"
 ARG_DRY="${ARG_DRY:-1}"
+GH_BOT_USERNAME="${GH_BOT_USERNAME:-teeworlds-mirror}"
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-teeworlds/teeworlds}"
 DOWNSTREAM_REMOTE="${DOWNSTREAM_REMOTE:-teeworlds-community/teeworlds}"
+COPY_BRANCHES="${COPY_BRANCHES:-0}"
+_upstream_remote_slug="$(printf '%s' "$UPSTREAM_REMOTE" | sed 's/[^a-zA-Z0-9]/_/g')"
+DEFAULT_COPY_BRANCHES_REMOTE="$GH_BOT_USERNAME/${_upstream_remote_slug}-mirror-prs"
+COPY_BRANCHES_REMOTE="${COPY_BRANCHES_REMOTE:-$DEFAULT_COPY_BRANCHES_REMOTE}"
 DOWNSTREAM_BRANCH="${DOWNSTREAM_BRANCH:-community}"
-GH_BOT_USERNAME="${GH_BOT_USERNAME:-teeworlds-mirror}"
+UPSTREAM_BRANCH="${UPSTREAM_BRANCH:-master}"
+
 
 KNOWN_URLS_FILE=urls.txt
 # this is not a github-cli variable
@@ -59,7 +65,12 @@ then
 	exit 1
 fi
 
+# temporary storage that can be deleted at any time
 mkdir -p tmp
+# more long term storage that is more annoying to obtain again
+# these files can also be messed with manually to configure things
+# for now only the COPY_BRANCHES repository is stored here
+mkdir -p data
 
 :>"$GH_URLS_FILE"
 [ ! -f "$KNOWN_URLS_FILE" ] && :>"$KNOWN_URLS_FILE"
@@ -106,7 +117,10 @@ sort_file() {
 	mv "$file_path".tmp "$file_path"
 }
 
-create_pr() {
+# create a pullrequest from the original source
+# so the branch will be owned by the upstream pr author
+# it can not be written to
+create_pr_direct_ref() {
 	url="$1"
 	ref="$2"
 	is_draft="$3"
@@ -140,6 +154,54 @@ create_pr() {
 	fi
 }
 
+# create a branch owned by the bot user
+# that contains the pullrequest
+# so this one has to be maintained by the bot
+# but it can be written to
+#
+# this function is not pure
+# it depends on being in the root of the mirror-bot repo on launch
+# and it changes directory into data/copy_branches_repo
+create_pr_copy_ref() {
+	cd data || exit 1
+	if [ ! -d copy_branches_repo ]
+	then
+		if ! git clone "git@github.com:$COPY_BRANCHES_REMOTE" copy_branches_repo
+		then
+			err "Error: failed to clone $COPY_BRANCHES_REMOTE"
+			err "       make sure to create this repository on github"
+			err "       as a fork of $UPSTREAM_REMOTE"
+			# has to be UPSTREAM_REMOTE because we assume the main branch is the UPSTREAM_BRANCH
+			# technically github has the flexibility to pick either upstream or downstream repo
+			# as a fork source for the copy branches repo
+			# because it can then pr everywhere
+			# but it makes the code way more complex if we
+			# want to support both in data/copy_branches_repo
+			exit 1
+		fi
+	fi
+	if [ ! -d copy_branches_repo ] || [ ! -d copy_branches_repo/.git ]
+	then
+		err "Error: missing repo at data/copy_branches_repo"
+		exit 1
+	fi
+
+	cd copy_branches_repo || exit 1
+}
+
+create_pr() {
+	if [ "$COPY_BRANCHES" = 1 ]
+	then
+		create_pr_direct_ref "$@"
+	else
+		# allow any kind of directory chaning
+		# in create_pr_copy_ref
+		old_pwd="$PWD"
+		create_pr_copy_ref "$@"
+		cd "$old_pwd" || exit 1
+	fi
+}
+
 on_new_pr() {
 	url="$1"
 	shift
@@ -161,9 +223,9 @@ on_new_pr() {
 		dbg "       url=$url ref=$ref title=$title"
 		printf '%s\n' "$url" >> "$KNOWN_URLS_FILE"
 		return
-	elif [ "$target_branch" != master ]
+	elif [ "$target_branch" != "$UPSTREAM_BRANCH" ]
 	then
-		wrn "Warning: ignoring pr because it is against the '$target_branch' not the expected 'master' branch"
+		wrn "Warning: ignoring pr because it is against the '$target_branch' not the expected '$UPSTREAM_BRANCH' branch"
 		wrn "         url=$url ref=$ref title=$title"
 		return
 	fi
