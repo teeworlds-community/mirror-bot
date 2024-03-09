@@ -415,6 +415,38 @@ check_for_new() {
 	done < "$GH_URLS_FILE"
 }
 
+show_help() {
+	cat <<-EOF
+	usage: mirror-bot.sh
+	description:
+	  it copys github pull requests
+	  from teeworlds/teeworlds to teeworlds-community/teeworlds
+	  but it can also be configured to mirror other repositories
+	  it depends on the github cli and jq
+	EOF
+}
+
+parse_args() {
+	while :
+	do
+		[ "$#" -lt 1 ] && break
+
+		arg="$1"
+		shift
+
+		if [ "$arg" = "--help" ] || [ "$arg" = "-h" ] || [ "$arg" = "help" ]
+		then
+			show_help
+			exit 0
+		else
+			err "Error: unknown argument '$arg' check --help"
+			exit 1
+		fi
+	done
+}
+
+parse_args "$@"
+
 if [ "$ARG_ALLOW_DUPLICATES" = 0 ]
 then
 	log "checking for new pulls on own remote ..."
