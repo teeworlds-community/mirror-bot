@@ -14,7 +14,7 @@ DEFAULT_COPY_BRANCHES_REMOTE="$GH_BOT_USERNAME/${_upstream_remote_slug}-mirror-p
 COPY_BRANCHES_REMOTE="${COPY_BRANCHES_REMOTE:-$DEFAULT_COPY_BRANCHES_REMOTE}"
 DOWNSTREAM_BRANCH="${DOWNSTREAM_BRANCH:-community}"
 UPSTREAM_BRANCH="${UPSTREAM_BRANCH:-master}"
-
+ARG_ALLOW_DUPLICATES="${ARG_ALLOW_DUPLICATES:-0}"
 
 KNOWN_URLS_FILE=urls.txt
 # this is not a github-cli variable
@@ -415,8 +415,11 @@ check_for_new() {
 	done < "$GH_URLS_FILE"
 }
 
-log "checking for new pulls on own remote ..."
-get_new_known_form_gh
+if [ "$ARG_ALLOW_DUPLICATES" = 0 ]
+then
+	log "checking for new pulls on own remote ..."
+	get_new_known_form_gh
+fi
 log "checking for new pulls on upstream remote ..."
 check_for_new
 log "done."
