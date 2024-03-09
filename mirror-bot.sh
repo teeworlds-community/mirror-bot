@@ -59,6 +59,12 @@ then
 	log "Running in dry mode. Run with ARG_DRY=0 to apply changes."
 fi
 
+if ! gh --version | grep -qF 'https://github.com/cli/cli/releases'
+then
+	err "Error: found gh in your PATH but it does not seem to be the github cli"
+	exit 1
+fi
+
 if ! gh auth switch --user "$GH_BOT_USERNAME"
 then
 	err "Error: failed to switch to github account '$GH_BOT_USERNAME'"
