@@ -231,6 +231,24 @@ push_branch_or_die() {
 	fi
 }
 
+attempt_rebase_ignore_conflicts() {
+	main_branch="$1"
+	if ! git rebase "$main_branch"
+	then
+		# assume git conflict
+		if ! git rebase --abort
+		then
+			# it was no conflict?
+			err "Error: something went wrong. Failed to abort failed rebase"
+			err ""
+			err "  cd $PWD"
+			err "  git status"
+			err ""
+			exit 1
+		fi
+	fi
+}
+
 # create a branch owned by the bot user
 # that contains the pullrequest
 # so this one has to be maintained by the bot
@@ -269,6 +287,7 @@ create_pr_copy_ref() {
 	git_add_remote_and_fetch "remote_$pr_repo_owner" "$pr_git_url"
 	git_checkout_branch_or_die "$remote_name/$pr_branch"
 	git checkout -b "$copy_branch_name" || exit 1
+	attempt_rebase_ignore_conflicts "$UPSTREAM_BRANCH"
 	push_branch_or_die origin "$copy_branch_name"
 
 	copy_branch_ref="$(printf '%s' "$COPY_BRANCHES_REMOTE" | cut -d'/' -f1):$copy_branch_name"
