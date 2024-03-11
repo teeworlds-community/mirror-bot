@@ -290,7 +290,7 @@ push_branch_or_die() {
 attempt_rebase_ignore_conflicts() {
 	main_branch="$1"
 	if ! git \
-		-c rebase.instructionFormat='%s%nexec GIT_COMMITTER_DATE="%cD" GIT_COMMITTER_NAME="%cn" GIT_COMMITTER_EMAIL="%ce" git commit --amend --no-edit --reset-author --date="%cD"' \
+		-c rebase.instructionFormat="%s%nexec GIT_COMMITTER_DATE='%cD' GIT_COMMITTER_NAME='%cn' GIT_COMMITTER_EMAIL='%ce' git commit --amend --no-edit --author '%an <%ae>' --date='%cD'" \
 		rebase "$main_branch"
 	then
 		# assume git conflict
