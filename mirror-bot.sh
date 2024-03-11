@@ -281,9 +281,17 @@ push_branch_or_die() {
 	fi
 }
 
+# rebase without touching git meta data
+# keep the original commit author
+# and commit date
+#
+# the rebase is aborted on conflict
+# leaving you with a clean working tree at all times
 attempt_rebase_ignore_conflicts() {
 	main_branch="$1"
-	if ! git rebase "$main_branch"
+	if ! git \
+		-c rebase.instructionFormat='%s%nexec GIT_COMMITTER_DATE="%cD" GIT_COMMITTER_NAME="%cn" GIT_COMMITTER_EMAIL="%ce" git commit --amend --no-edit --reset-author --date="%cD"' \
+		rebase "$main_branch"
 	then
 		# assume git conflict
 		if ! git rebase --abort
