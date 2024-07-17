@@ -74,3 +74,4 @@ https://github.com/teeworlds/teeworlds/pull/3248
 https://github.com/teeworlds/teeworlds/pull/3249
 https://github.com/teeworlds/teeworlds/pull/3250
 https://github.com/teeworlds/teeworlds/pull/3251
+https://github.com/teeworlds/teeworlds/pull/3252
