@@ -583,7 +583,7 @@ force_recreate_pr_for_upstream_id() {
 	grep -v "/$upstream_id$" "$SCRIPT_ROOT/urls.txt" > "$SCRIPT_ROOT/tmp/urls.txt.tmp"
 	mv "$SCRIPT_ROOT/tmp/urls.txt.tmp" "$SCRIPT_ROOT/urls.txt" || exit 1
 
-	upstream_url="https://github.com/teeworlds/teeworlds/pull/$upstream_id"
+	upstream_url="https://github.com/$UPSTREAM_REMOTE/pull/$upstream_id"
 	if ! upstream_pr_details="$(get_upstream_prs | grep "^$upstream_url ")"
 	then
 		err "Error: upstream pr with id $upstream_id not found"
@@ -603,7 +603,7 @@ force_recreate_pr_for_upstream_id() {
 refresh_pr_for_upstream_id() {
 	upstream_id="$1"
 
-	upstream_url="https://github.com/teeworlds/teeworlds/pull/$upstream_id"
+	upstream_url="https://github.com/$UPSTREAM_REMOTE/pull/$upstream_id"
 	if ! upstream_pr_details="$(get_upstream_prs | grep "^$upstream_url ")"
 	then
 		err "Error: upstream pr with id $upstream_id not found"
@@ -625,7 +625,7 @@ show_help() {
 	usage: mirror-bot.sh [OPTION..]
 	description:
 	  it copies github pull requests
-	  from teeworlds/teeworlds to teeworlds-community/teeworlds
+	  from $UPSTREAM_REMOTE to $DOWNSTREAM_REMOTE
 	  but it can also be configured to mirror other repositories
 	  it depends on the github cli and jq
 	options:
