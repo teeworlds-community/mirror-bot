@@ -2,6 +2,13 @@
 
 Shell script to copy pullrequests from teeworlds/teeworlds to teeworlds-community/teeworlds
 
+## dependencies
+
+- POSIX shell
+- jq
+- github cli
+- git
+
 ## setup
 
 Install the github cli and then login:

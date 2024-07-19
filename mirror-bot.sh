@@ -59,6 +59,7 @@ check_dep() {
 
 check_dep gh
 check_dep jq
+check_dep git
 
 if [ "$ARG_DRY" = 1 ]
 then
