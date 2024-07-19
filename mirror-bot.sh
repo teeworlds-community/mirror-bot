@@ -264,12 +264,14 @@ git_add_remote_and_fetch() {
 push_branch_or_die() {
 	remote="$1"
 	branch="$2"
+	flags="${3:-}"
 	if [ "$ARG_DRY" != 0 ]
 	then
 		log "(dry run) would push branch $branch to remote $remote"
 		return
 	fi
-	if ! git push -u "$remote" "$branch"
+	# shellcheck disable=SC2086
+	if ! git push -u "$remote" "$branch" $flags
 	then
 		err "Error: failed to push branch $branch to remote $remote"
 		err "       check the following command"
@@ -366,6 +368,40 @@ create_pr_copy_ref() {
 			exit 1
 		fi
 	fi
+}
+
+# update a branch owned by the bot user
+# that contains the pullrequest
+#
+# this function is not pure
+# it depends on being in the root of the mirror-bot repo on launch
+# and it changes directory into data/copy_branches_repo
+update_copied_pr() {
+	url="$1"
+	pr_repo_name="$2"
+	ref="$3"
+	pr_id="${url##*/}"
+	dbg "updating ref=$ref pr_id=$pr_id"
+
+	goto_copy_branches_repo
+	git_checkout_branch_or_die "$UPSTREAM_BRANCH"
+	git fetch || exit 1
+
+	pr_repo_owner="$(printf '%s' "$ref" | cut -d':' -f1)"
+	pr_branch="$(printf '%s' "$ref" | cut -d':' -f2-)"
+	pr_git_url="git@github.com:$pr_repo_owner/$pr_repo_name"
+	copy_branch_name="mirror_${pr_id}_${pr_repo_owner}_$pr_branch"
+
+	log "fetching pr from $pr_git_url ..."
+
+	git_add_remote_and_fetch "remote_$pr_repo_owner" "$pr_git_url"
+	git_add_remote_and_fetch "remote_downstream" "git@github.com:$DOWNSTREAM_REMOTE"
+	git_checkout_branch_or_die "remote_$pr_repo_owner/$pr_branch"
+
+	git branch -D "$copy_branch_name" 2>/dev/null || true
+	git checkout -b "$copy_branch_name" || exit 1
+	attempt_rebase_ignore_conflicts "remote_downstream/$DOWNSTREAM_BRANCH"
+	push_branch_or_die origin "$copy_branch_name" --force
 }
 
 create_pr() {
@@ -563,6 +599,27 @@ force_recreate_pr_for_upstream_id() {
 	on_new_pr $upstream_pr_details
 }
 
+# reforce push commits for one specific upstream id
+refresh_pr_for_upstream_id() {
+	upstream_id="$1"
+
+	upstream_url="https://github.com/teeworlds/teeworlds/pull/$upstream_id"
+	if ! upstream_pr_details="$(get_upstream_prs | grep "^$upstream_url ")"
+	then
+		err "Error: upstream pr with id $upstream_id not found"
+		err "       should be located here: $upstream_url"
+		exit 1
+	fi
+	if [ "$upstream_pr_details" = "" ]
+	then
+		err "Error: upstream pr with id $upstream_id not found"
+		exit 1
+	fi
+	# shellcheck disable=SC2086
+	update_copied_pr $upstream_pr_details
+}
+
+
 show_help() {
 	cat <<-EOF
 	usage: mirror-bot.sh [OPTION..]
@@ -572,9 +629,13 @@ show_help() {
 	  but it can also be configured to mirror other repositories
 	  it depends on the github cli and jq
 	options:
-	  --force-recreate <upstream_id..>          close pending downstream prs for given upstream ids
+	  --force-recreate <upstream_id..>          Close pending downstream prs for given upstream ids
 	                                            and also force create one fresh pr for that upstream ids
 	                                            example: mirror-bot.sh --force-recreate 56 82
+
+	  --update <upstream_id..>                  Do a force push with new commits from upstream in an existing copied pr
+	                                            it will keep the downstream pr open. It will fail if there is no matching
+	                                            downstream pr.
 	EOF
 }
 
@@ -582,6 +643,13 @@ action_force_recreate() {
 	for upstream_id in "$@"
 	do
 		force_recreate_pr_for_upstream_id "$upstream_id"
+	done
+}
+
+action_update() {
+	for upstream_id in "$@"
+	do
+		refresh_pr_for_upstream_id "$upstream_id"
 	done
 }
 
@@ -643,6 +711,35 @@ parse_args() {
 				fi
 			done
 			action=action_force_recreate
+		elif [ "$arg" = "--update" ]
+		then
+			action_args=''
+			if [ "$#" -lt 1 ]
+			then
+				err "Error: missing argument upstream_id for --update"
+				exit 1
+			fi
+			if ! printf "%s" "$1" | grep -qE '^[0-9]+$'
+			then
+				err "Error: missing numeric argument upstream_id for --update"
+				exit 1
+			fi
+			# force_recreate_pr_for_upstream_id 3242
+			got_numeric=1
+			while [ "$got_numeric" = 1 ]
+			do
+				[ "$#" -lt 1 ] && break
+
+				upstream_id=$1
+				shift
+				action_args=$action_args"$upstream_id "
+
+				if ! printf "%s" "$1" | grep -qE '^[0-9]+$'
+				then
+					got_numeric=0
+				fi
+			done
+			action=action_update
 		else
 			err "Error: unknown argument '$arg' check --help"
 			exit 1
@@ -652,6 +749,10 @@ parse_args() {
 	then
 		# shellcheck disable=SC2086
 		action_force_recreate $action_args
+	elif [ "$action" = action_update ]
+	then
+		# shellcheck disable=SC2086
+		action_update $action_args
 	else
 		action_sync
 	fi
