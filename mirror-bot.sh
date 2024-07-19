@@ -662,11 +662,13 @@ refresh_pr_for_upstream_id() {
 show_help() {
 	cat <<-EOF
 	usage: mirror-bot.sh [OPTION..]
+
 	description:
 	  it copies github pull requests
 	  from $UPSTREAM_REMOTE to $DOWNSTREAM_REMOTE
 	  but it can also be configured to mirror other repositories
 	  it depends on the github cli and jq
+
 	options:
 	  --force-recreate <upstream_id..>          Close pending downstream prs for given upstream ids
 	                                            and also force create one fresh pr for that upstream ids
