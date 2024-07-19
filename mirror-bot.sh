@@ -122,6 +122,33 @@ get_upstream_prs() {
 	fi
 }
 
+# usage: get_closed_usptream_prs [AMOUNT]
+#
+# high amounts can take a long time to load
+# because there are a lot of closed prs
+#
+# example output:
+# https://github.com/teeworlds/teeworlds/pull/294 CLOSED
+# https://github.com/teeworlds/teeworlds/pull/293 MERGED
+# https://github.com/teeworlds/teeworlds/pull/286 CLOSED
+# https://github.com/teeworlds/teeworlds/pull/284 CLOSED
+# https://github.com/teeworlds/teeworlds/pull/277 CLOSED
+# https://github.com/teeworlds/teeworlds/pull/268 CLOSED
+get_closed_upstream_prs() {
+	amount="${1:-100}"
+	if ! gh pr list \
+		--limit "$amount" \
+		--repo "$UPSTREAM_REMOTE" \
+		--state closed \
+		--json url,state |
+		jq -r '.[] | "\(.url) \(.state)"' |
+		sort
+	then
+		err "Error: failed to list closed upstream pull requests on github"
+		exit 1
+	fi
+}
+
 sort_file() {
 	file_path="$1"
 	if [ -f "$file_path".tmp ]
