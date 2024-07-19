@@ -6,6 +6,7 @@ shell script to copy pullrequests from teeworlds/teeworlds to teeworlds-communit
 install the github cli and then login
 
 ```bash
+mkdir -p gh
 GH_CONFIG_DIR=./gh gh auth login
 ```
 
