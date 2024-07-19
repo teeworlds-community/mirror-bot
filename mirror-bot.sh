@@ -127,6 +127,18 @@ get_upstream_prs() {
 # high amounts can take a long time to load
 # because there are a lot of closed prs
 #
+# untested example usage:
+#
+# if get_closed_upstream_prs | grep '/2567 CLOSED'
+# then
+# 	printf '2567 is closed\n'
+# elif get_closed_upstream_prs | grep '/2567 MERGED'
+# then
+# 	printf '2567 is merged\n'
+# else
+# 	printf '2567 is unknown (still open or not loaded try get_closed_upstream_prs 99999)\n'
+# fi
+#
 # example output:
 # https://github.com/teeworlds/teeworlds/pull/294 CLOSED
 # https://github.com/teeworlds/teeworlds/pull/293 MERGED
