@@ -21,6 +21,7 @@ then open `.env` with your favorite text editor and adapt the values.
 ## terms
 
 **upstream** Is the project you copy from. It will act as source of truth for the mirror bot and will never be written to.
+
 **downstream** Is a copy of the upstream. A repository you own. The mirror bot will open pull requests here.
 
 Example upstream: teeworlds/teeworlds
